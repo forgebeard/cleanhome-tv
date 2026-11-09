@@ -7,7 +7,7 @@
 руками: всё сделали ИИ-агенты (DeepSeek Harness и Claude Code) по моим просьбам за три вечера.
 Работает у меня на двух телевизорах:
 
-- **Tuvio STV-43FDUBK1R**: Android 9, 1,3 ГБ памяти. Старенький, и с CleanHome он стал заметно шустрее.
+- **Tuvio STV-43FDUBK1R**: Android 9, 1,5 ГБ памяти по паспорту. Старенький, и с CleanHome он стал заметно шустрее.
 - **Яндекс ТВ Станция MiniLED**: Android 14 (YaOS). Отладка у неё закрыта, лаунчер ставится через браузер телевизора.
 
 ![CleanHome на телевизоре: экран «Сцена»](docs/cover.jpg)
@@ -77,5 +77,5 @@
 
 **English.** CleanHome is a personal fork of the CleanYourTV Android TV launcher, built entirely by AI coding agents:
 an Apple TV style «Scene» home, Cyrillic fonts, a wallpaper picker with previews, a settings screen with a live
-preview and a 35% faster cold start on a 1.3 GB Android 9 TV. To install, paste the prompt above into Claude Code or
+preview and a 35% faster cold start on a 1.5 GB Android 9 TV. To install, paste the prompt above into Claude Code or
 Codex; the agent follows [AGENTS.md](AGENTS.md) and installs over ADB, or through the TV browser where ADB is locked.
