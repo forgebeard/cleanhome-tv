@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Unbounded at weight 700: the display face of the scene home (the focused app's name). Cyrillic and Latin. -->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <font
+        android:font="@font/unbounded"
+        android:fontStyle="normal"
+        android:fontWeight="700"
+        android:fontVariationSettings="'wght' 700"
+        tools:targetApi="28" />
+</font-family>

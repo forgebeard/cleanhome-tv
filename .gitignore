@@ -1,0 +1,19 @@
+# сборка
+.gradle/
+build/
+app/build/
+captures/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# локальное окружение
+local.properties
+.idea/
+*.iml
+.DS_Store
+
+# ключи
+*.jks
+*.keystore

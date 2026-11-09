@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Banner for the YouTube tile (config.xml, app_banners): the red play button, big, on a near-black field. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:width="320dp" android:height="180dp">
+        <shape android:shape="rectangle">
+            <gradient android:angle="270" android:startColor="#FF2A2A2A" android:endColor="#FF0F0F0F" />
+        </shape>
+    </item>
+    <item android:width="132dp" android:height="92dp" android:gravity="center"
+        android:drawable="@drawable/ic_youtube_logo" />
+</layer-list>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Outfit has no Cyrillic glyphs at all, so Russian text fell back to the system font letter by letter. Manrope
+     covers Cyrillic and Latin with one design. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="ReferenceType">
+    <string name="font_body" translatable="false">@font/manrope_regular</string>
+    <string name="font_regular" translatable="false">@font/manrope_regular</string>
+    <string name="font_light" translatable="false">@font/manrope_light</string>
+    <string name="font_extralight" translatable="false">@font/manrope_extralight</string>
+    <string name="font_medium" translatable="false">@font/manrope_semibold</string>
+</resources>

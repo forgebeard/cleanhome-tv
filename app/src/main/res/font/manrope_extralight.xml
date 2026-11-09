@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Manrope at weight 200, built once per process (same approach as outfit_*.xml). Manrope's default instance is
+     weight 200, so every weight is pinned here. Android 8 ignores the weight and draws the default instance. -->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <font
+        android:font="@font/manrope"
+        android:fontStyle="normal"
+        android:fontWeight="200"
+        android:fontVariationSettings="'wght' 200"
+        tools:targetApi="28" />
+</font-family>

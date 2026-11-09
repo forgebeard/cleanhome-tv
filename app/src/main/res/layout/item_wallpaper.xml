@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/wallpaper_tile_bg"
+    android:clickable="true"
+    android:descendantFocusability="blocksDescendants"
+    android:focusable="true">
+
+    <ImageView
+        android:id="@+id/wallpaperImage"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop" />
+
+    <TextView
+        android:id="@+id/wallpaperLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="#B30B0D10"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingStart="14dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="8dp"
+        android:textColor="#FFEEF2F6"
+        android:textSize="15sp" />
+
+    <TextView
+        android:id="@+id/wallpaperCheck"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="10dp"
+        android:background="@drawable/wallpaper_check_bg"
+        android:paddingStart="10dp"
+        android:paddingTop="2dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="2dp"
+        android:text="@string/wallpaper_picker_check"
+        android:textColor="#FF0B0D10"
+        android:textSize="15sp"
+        android:visibility="gone" />
+</FrameLayout>

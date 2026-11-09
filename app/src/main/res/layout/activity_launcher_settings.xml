@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/settings_bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:paddingStart="72dp"
+        android:paddingEnd="72dp"
+        android:paddingTop="40dp"
+        android:paddingBottom="30dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/launcher_settings"
+                android:textColor="#FFF4F8FB"
+                android:textSize="30sp"
+                android:fontFamily="@string/font_light"
+                android:letterSpacing="-0.01" />
+
+            <ScrollView
+                android:id="@+id/settingsScroll"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="14dp"
+                android:layout_weight="1"
+                android:clipToPadding="false"
+                android:fillViewport="true"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/settingsContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/SettingsSection"
+                        android:layout_marginTop="10dp"
+                        android:text="@string/settings_section_look" />
+
+                    <!-- App count and grid rows: segment pills, the row itself takes no focus. -->
+                    <LinearLayout style="@style/SettingsCardStatic">
+                        <TextView style="@style/SettingsLabel" android:text="@string/settings_columns" />
+                        <LinearLayout style="@style/SettingsSegments">
+                            <TextView android:id="@+id/columns4" style="@style/SettingsSegment" android:text="4" />
+                            <TextView android:id="@+id/columns5" style="@style/SettingsSegment" android:text="5" />
+                            <TextView android:id="@+id/columns6" style="@style/SettingsSegment" android:text="6" />
+                            <TextView android:id="@+id/columns7" style="@style/SettingsSegment" android:text="7" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout style="@style/SettingsCardStatic">
+                        <TextView style="@style/SettingsLabel" android:text="@string/settings_rows" />
+                        <LinearLayout style="@style/SettingsSegments">
+                            <TextView android:id="@+id/rows0" style="@style/SettingsSegment" android:text="0" />
+                            <TextView android:id="@+id/rows1" style="@style/SettingsSegment" android:text="1" />
+                            <TextView android:id="@+id/rows2" style="@style/SettingsSegment" android:text="2" />
+                            <TextView android:id="@+id/rows3" style="@style/SettingsSegment" android:text="3" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout style="@style/SettingsCardStatic">
+                        <TextView style="@style/SettingsLabel" android:text="@string/settings_dock" />
+                        <LinearLayout style="@style/SettingsSegments">
+                            <TextView android:id="@+id/dock100" style="@style/SettingsSegment" android:text="100%" />
+                            <TextView android:id="@+id/dock70" style="@style/SettingsSegment" android:text="70%" />
+                            <TextView android:id="@+id/dock50" style="@style/SettingsSegment" android:text="50%" />
+                            <TextView android:id="@+id/dock30" style="@style/SettingsSegment" android:text="30%" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout style="@style/SettingsCardStatic">
+                        <TextView style="@style/SettingsLabel" android:text="@string/settings_clock" />
+                        <LinearLayout style="@style/SettingsSegments">
+                            <TextView android:id="@+id/clockSystem" style="@style/SettingsSegment" android:text="@string/clock_format_system" />
+                            <TextView android:id="@+id/clock12" style="@style/SettingsSegment" android:text="@string/clock_format_12" />
+                            <TextView android:id="@+id/clock24" style="@style/SettingsSegment" android:text="@string/clock_format_24" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout android:id="@+id/wallpaperRow" style="@style/SettingsCard">
+                        <TextView style="@style/SettingsLabel" android:text="@string/wallpaper_label" />
+                        <ImageView
+                            android:id="@+id/wallpaperThumb"
+                            android:layout_width="46dp"
+                            android:layout_height="26dp"
+                            android:layout_marginEnd="12dp"
+                            android:background="@drawable/settings_thumb_bg"
+                            android:clipToOutline="true"
+                            android:contentDescription="@null"
+                            android:scaleType="centerCrop" />
+                        <TextView android:id="@+id/wallpaperChoice" style="@style/SettingsValue" />
+                        <TextView style="@style/SettingsChevron" />
+                    </LinearLayout>
+
+                    <LinearLayout android:id="@+id/animationsRow" style="@style/SettingsCard">
+                        <TextView style="@style/SettingsLabel" android:text="@string/settings_animations" />
+                        <TextView android:id="@+id/animationsChoice" style="@style/SettingsSwitch" />
+                    </LinearLayout>
+
+                    <LinearLayout android:id="@+id/advancedRow" style="@style/SettingsCard">
+                        <TextView style="@style/SettingsLabel" android:text="@string/settings_advanced" />
+                        <TextView android:id="@+id/advancedChoice" style="@style/SettingsSwitch" />
+                    </LinearLayout>
+
+                    <TextView style="@style/SettingsHint" android:text="@string/settings_advanced_hint" />
+
+                    <LinearLayout android:id="@+id/followThemeRow" style="@style/SettingsCard">
+                        <TextView style="@style/SettingsLabel" android:text="@string/settings_follow" />
+                        <TextView android:id="@+id/followThemeValue" style="@style/SettingsValue" />
+                        <TextView style="@style/SettingsChevron" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/appsSection"
+                        style="@style/SettingsSection"
+                        android:text="@string/settings_section_apps"
+                        android:visibility="gone" />
+
+                    <LinearLayout
+                        android:id="@+id/reorderRow"
+                        style="@style/SettingsCard"
+                        android:visibility="gone">
+                        <TextView style="@style/SettingsLabel" android:text="@string/settings_reorder" />
+                        <TextView style="@style/SettingsChevron" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/openOnStartRow"
+                        style="@style/SettingsCard"
+                        android:visibility="gone">
+                        <TextView style="@style/SettingsLabel" android:text="@string/settings_open_on_start" />
+                        <TextView android:id="@+id/openOnStartValue" style="@style/SettingsValue" />
+                        <TextView style="@style/SettingsChevron" />
+                    </LinearLayout>
+
+                    <TextView
+                        style="@style/SettingsSection"
+                        android:text="@string/settings_section_system" />
+
+                    <LinearLayout
+                        android:id="@+id/wifiNameRow"
+                        style="@style/SettingsCard"
+                        android:visibility="gone">
+                        <TextView style="@style/SettingsLabel" android:text="@string/settings_wifi" />
+                        <TextView android:id="@+id/wifiNameValue" style="@style/SettingsValue" android:text="@string/wifi_name_value_allow" />
+                        <TextView style="@style/SettingsChevron" />
+                    </LinearLayout>
+
+                    <LinearLayout android:id="@+id/defaultHomeRow" style="@style/SettingsCard">
+                        <TextView style="@style/SettingsLabel" android:text="@string/settings_home" />
+                        <TextView style="@style/SettingsChevron" />
+                    </LinearLayout>
+
+                    <TextView style="@style/SettingsHint" android:text="@string/settings_home_hint" />
+
+                    <LinearLayout android:id="@+id/tvSettingsRow" style="@style/SettingsCard">
+                        <TextView style="@style/SettingsLabel" android:text="@string/settings_tv" />
+                        <TextView style="@style/SettingsChevron" />
+                    </LinearLayout>
+                </LinearLayout>
+            </ScrollView>
+        </LinearLayout>
+
+        <!-- Live Home preview: the wallpaper, the dock and its panel opacity, and the grid rows below it. -->
+        <LinearLayout
+            android:layout_width="280dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="26dp"
+            android:orientation="vertical">
+
+            <FrameLayout
+                android:id="@+id/previewCard"
+                android:layout_width="match_parent"
+                android:layout_height="340dp"
+                android:background="@drawable/preview_card_bg"
+                android:clipToOutline="true">
+
+                <ImageView
+                    android:id="@+id/previewWallpaper"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@null"
+                    android:scaleType="centerCrop" />
+
+                <FrameLayout
+                    android:id="@+id/previewScreen"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_margin="14dp"
+                    android:background="@drawable/preview_screen_bg"
+                    android:clipToOutline="true" />
+            </FrameLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center"
+                android:letterSpacing="0.16"
+                android:text="@string/settings_live_preview"
+                android:textAllCaps="true"
+                android:textColor="#FF8A98A6"
+                android:textSize="11sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center"
+                android:text="@string/settings_preview_hint"
+                android:textColor="#FF5F6F7D"
+                android:textSize="11sp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/doneButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:background="@drawable/settings_done_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="@string/settings_done"
+                android:textColor="#FF0C1117"
+                android:textSize="16sp" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

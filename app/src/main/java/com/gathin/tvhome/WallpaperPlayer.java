@@ -1,0 +1,351 @@
+package com.gathin.tvhome;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.text.TextUtils;
+import android.util.DisplayMetrics;
+import android.util.Log;
+import android.util.TypedValue;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.TextView;
+
+import java.io.File;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
+/** Displays and rotates a theme's local wallpaper images while Home is visible. */
+final class WallpaperPlayer {
+    private FrameLayout root;
+    private final Context context;
+    private final ImageView image;
+    private final int backgroundColor;
+    private final List<File> files;
+    private final long interval;
+    private final String order;
+    private final SharedPreferences preferences;
+    private final ExecutorService decoder = Executors.newSingleThreadExecutor();
+    private final Random random = new Random();
+    private final int width;
+    /** config wallpaper_true_color: ARGB_8888 instead of RGB_565. */
+    private final Bitmap.Config bitmapConfig;
+    private final int height;
+    /** wallpaper_dim as an ARGB black; applied as a colour filter on the picture, so no shade view and no pixel pass. */
+    private final int dimColor;
+    /** The picture on screen, released once the next one has been drawn. */
+    private Bitmap current;
+    private boolean active;
+    private boolean closed;
+    private boolean loading;
+    private String displayed = "";
+    /** wallpaper_captions: the shown picture's name from wallpapers/captions.txt; null when off or there are none. */
+    private TextView caption;
+    private final Map<String, String> names;
+    /** wallpaper_moods: the collection's groups by time of day; empty rotates through all of it. */
+    private final Map<String, Set<String>> moods;
+    /** config.xml latitude and longitude for the sun's times, and today's {sunrise, sunset} once worked out. */
+    private final String latitude, longitude;
+    private LocalDate sunDay;
+    private int[] sun;
+    /** The first picture, decoding on the decoder thread while the layout is built; null when there is none to show. */
+    private Future<First> firstPicture;
+
+    /** Home's opening picture: which file, its pixels, and the file shown last time. */
+    private static final class First {
+        final File file;
+        final Bitmap bitmap;
+        final String previous;
+
+        First(File file, Bitmap bitmap, String previous) {
+            this.file = file;
+            this.bitmap = bitmap;
+            this.previous = previous;
+        }
+    }
+
+    /**
+     * Reads the state and starts decoding Home's first picture right away, on the decoder thread. Call it before the
+     * layout is inflated and {@link #attach} afterwards: the picture is then decoded alongside the inflate instead of
+     * after it (the decode was about 200 ms on a Mali TV, all of it before the first frame).
+     */
+    WallpaperPlayer(Context context, Config config) {
+        this.context = context;
+        backgroundColor = config.backgroundColor;
+        files = new ArrayList<>(config.wallpapers);
+        interval = config.wallpaperRotationMinutes * 60_000L;
+        bitmapConfig = config.wallpaperTrueColor ? Bitmap.Config.ARGB_8888 : Bitmap.Config.RGB_565;
+        dimColor = config.wallpaperDim > 0 ? (config.wallpaperDim * 255 / 100) << 24 : 0;
+        order = config.wallpaperOrder;
+        preferences = context.getSharedPreferences("wallpaper_rotation", Context.MODE_PRIVATE);
+        moods = config.wallpaperMoods;
+        latitude = moods.isEmpty() ? "" : context.getString(R.string.latitude);
+        longitude = moods.isEmpty() ? "" : context.getString(R.string.longitude);
+        DisplayMetrics metrics = context.getResources().getDisplayMetrics();
+        width = metrics.widthPixels;
+        height = metrics.heightPixels;
+        image = new ImageView(context);
+        image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        image.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        // The dim is a multiply on the picture as it is drawn: the same result as painting black over it, without a
+        // 45 ms pass over every decoded bitmap before the first frame, and no full-screen shade layer.
+        if (dimColor != 0) {
+            int shade = 255 - (dimColor >>> 24);
+            image.setColorFilter(0xFF000000 | shade << 16 | shade << 8 | shade, android.graphics.PorterDuff.Mode.MULTIPLY);
+        }
+        names = config.wallpaperCaptions && config.wallpaperEnabled && !files.isEmpty()
+                ? WallpaperCaptions.read(files.get(0).getParentFile()) : Collections.emptyMap();
+        if (config.wallpaperEnabled && !files.isEmpty()) firstPicture = decoder.submit(this::loadFirst);
+    }
+
+    /** Puts the wallpaper into Home's root once the layout exists, waiting for the first picture if it is still decoding. */
+    void attach(FrameLayout root) {
+        this.root = root;
+        caption = names.isEmpty() ? null : makeCaption(context, root);
+        if (firstPicture == null) return;
+        root.addView(image, 0, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        First first = null;
+        try {
+            first = firstPicture.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (Exception failed) {
+            // the plain colour stays
+        }
+        firstPicture = null;
+        if (first == null) return;
+        show(first.bitmap);
+        // The picture covers the whole screen: the root's plain colour under it is overdraw.
+        root.setBackground(null);
+        displayed = first.file.getName();
+        showCaption(false);
+        if (!displayed.equals(first.previous)) {
+            preferences.edit().putString("image", displayed)
+                    .putLong("changed", System.currentTimeMillis()).apply();
+        }
+    }
+
+    /**
+     * The picture Home opens with, picked and decoded on the decoder thread while Home builds its layout, so the first
+     * frame already has it instead of drawing the plain colour and the picture popping in later. Only the later
+     * changes of a rotation come in after the first frame.
+     */
+    private First loadFirst() {
+        // Playback state belongs to one collection. Changing the collection starts from its first
+        // picture instead of resuming a filename that belonged to the previous one.
+        String collection = collectionKey(files);
+        if (!collection.equals(preferences.getString("collection", ""))) {
+            preferences.edit().putString("collection", collection)
+                    .remove("image").remove("changed").apply();
+        }
+        String previous = preferences.getString("image", "");
+        List<File> playable = playable();
+        File first = WallpaperRotation.find(playable, previous);
+        if (first == null) first = WallpaperRotation.pick(playable, previous, order, random);
+        while (first != null) {
+            Bitmap bitmap = decode(first);
+            if (bitmap != null) return new First(first, bitmap, previous);
+            files.remove(first);   // unreadable or over 4K: try another, or keep the plain colour
+            playable = playable();
+            first = WallpaperRotation.pick(playable, previous, order, random);
+        }
+        return null;
+    }
+
+    void start() {
+        active = true;
+        update();
+    }
+
+    void stop() {
+        active = false;
+    }
+
+    /** Drops the wallpaper texture when Home is hidden and Android asks the process to free memory. */
+    void releaseForMemoryPressure() {
+        if (current == null) return;
+        image.setImageDrawable(null);
+        // The renderer may still have a queued frame that references this hardware bitmap. Drop our references and
+        // let Android reclaim its native buffer after rendering releases it instead of recycling it mid-frame.
+        current = null;
+        displayed = "";
+        root.setBackgroundColor(backgroundColor);
+    }
+
+    /** The pictures the rotation picks from now: wallpaper_moods' group for the time of day, or the whole collection. */
+    private List<File> playable() {
+        if (moods.isEmpty()) return files;
+        LocalDateTime now = LocalDateTime.now();
+        if (!now.toLocalDate().equals(sunDay)) {
+            sunDay = now.toLocalDate();
+            sun = WallpaperMood.sun(sunDay, latitude, longitude, ZoneId.systemDefault());
+        }
+        return WallpaperMood.select(files, moods, WallpaperMood.timeOfDay(now.getHour() * 60 + now.getMinute(), sun[0], sun[1]));
+    }
+
+    void close() {
+        active = false;
+        closed = true;
+        decoder.shutdownNow();
+    }
+
+    void update() {
+        if (!active || closed || loading || files.isEmpty()) return;
+        String previous = preferences.getString("image", "");
+        // A picture outside the time of day's group (the group changed) is replaced at once, not after the interval.
+        List<File> playable = playable();
+        File selected = WallpaperRotation.find(playable, previous);
+        long changed = preferences.getLong("changed", 0);
+        if (selected == null || WallpaperRotation.due(changed, System.currentTimeMillis(), interval)) {
+            selected = WallpaperRotation.pick(playable, previous, order, random);
+        }
+        if (selected == null || selected.getName().equals(displayed)) return;
+        File next = selected;
+        loading = true;
+        decoder.execute(() -> {
+            Bitmap bitmap = decode(next);
+            root.post(() -> {
+                loading = false;
+                if (closed || !active) {
+                    if (bitmap != null) bitmap.recycle();
+                    return;
+                }
+                if (bitmap == null) {
+                    files.remove(next);
+                    Log.w("TvHome.Wallpaper", "Skipping unreadable image: " + next.getName());
+                    update();
+                    return;
+                }
+                show(bitmap);
+                displayed = next.getName();
+                showCaption(true);
+                if (!displayed.equals(previous) || changed == 0) {
+                    preferences.edit().putString("image", displayed)
+                            .putLong("changed", System.currentTimeMillis()).apply();
+                }
+            });
+        });
+    }
+
+    /**
+     * Small light text under the top-right buttons, above everything else and never focusable. It sits where the
+     * top bar ends in every layout, so it does not cover the clock, the stats line or the tiles.
+     */
+    private static TextView makeCaption(Context context, FrameLayout root) {
+        float dp = context.getResources().getDisplayMetrics().density;
+        TextView text = new TextView(context);
+        text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        text.setTextColor(0xD9FFFFFF);
+        text.setShadowLayer(6 * dp, 0, dp, 0xCC000000);
+        text.setSingleLine(true);
+        text.setEllipsize(TextUtils.TruncateAt.END);
+        text.setMaxWidth(Math.round(520 * dp));
+        text.setFocusable(false);
+        text.setAlpha(0f);
+        try {
+            text.setTypeface(UiFont.get(context, R.string.font_regular));
+        } catch (Exception ignored) {
+            // the system font is fine
+        }
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
+        params.topMargin = Math.round(110 * dp);
+        params.setMarginEnd(Math.round(62 * dp));
+        root.addView(text, params);
+        return text;
+    }
+
+    /** The displayed picture's name, faded across a change; a picture without a name hides the caption. */
+    private void showCaption(boolean fade) {
+        if (caption == null) return;
+        String name = names.get(displayed);
+        caption.animate().cancel();
+        if (name == null) {
+            caption.setAlpha(0f);
+            return;
+        }
+        caption.setContentDescription(name);
+        if (!fade || caption.getAlpha() == 0f) {
+            caption.setText(name);
+            caption.setAlpha(1f);
+            return;
+        }
+        caption.animate().alpha(0f).setDuration(250).withEndAction(() -> {
+            caption.setText(name);
+            caption.animate().alpha(1f).setDuration(350).start();
+        }).start();
+    }
+
+    /** Names plus sizes: enough to notice a different collection without hashing every image. */
+    private static String collectionKey(List<File> images) {
+        StringBuilder key = new StringBuilder();
+        for (File file : images) key.append(file.getName()).append(':').append(file.length()).append(';');
+        return key.toString();
+    }
+
+    /** Puts a picture on screen and releases the previous one after a frame has drawn the new one. */
+    private void show(Bitmap bitmap) {
+        Bitmap old = current;
+        current = bitmap;
+        // The wallpaper covers the whole root; avoid drawing the fallback colour under it.
+        root.setBackground(null);
+        image.setImageBitmap(bitmap);
+        if (old != null && old != bitmap) image.postDelayed(old::recycle, 500);
+    }
+
+    /** Last decode cost in ms, shown in the performance dialog. */
+    private static volatile long lastDecodeMs;
+
+    static long lastDecodeMs() {
+        return lastDecodeMs;
+    }
+
+    private Bitmap decode(File file) {
+        long started = android.os.SystemClock.uptimeMillis();
+        try {
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(file.getPath(), options);
+            int width = options.outWidth, height = options.outHeight;
+            if (width <= 0 || height <= 0) return null;
+            int sample = WallpaperSize.sampleSize(width, height, this.width, this.height);
+            if (!WallpaperSize.accepted(width / sample, height / sample)) return null;
+            options.inJustDecodeBounds = false;
+            options.inSampleSize = sample;
+            int[] scale = WallpaperSize.coverScale(width / sample, height / sample, this.width, this.height);
+            if (scale != null) {
+                options.inScaled = true;
+                options.inDensity = scale[0];
+                options.inTargetDensity = scale[1];
+            }
+            options.inPreferredConfig = bitmapConfig;
+            Bitmap decoded = BitmapFactory.decodeFile(file.getPath(), options);
+            if (decoded == null) return null;
+            // One copy in GPU memory instead of a software bitmap plus its texture; the decode stays off the UI
+            // thread for rotations, and Home's return no longer uploads 4-8 MB to the GPU.
+            Bitmap gpu = decoded.copy(Bitmap.Config.HARDWARE, false);
+            if (gpu == null) return decoded;
+            decoded.recycle();
+            return gpu;
+        } catch (Exception | OutOfMemoryError failure) {
+            return null;
+        } finally {
+            lastDecodeMs = android.os.SystemClock.uptimeMillis() - started;
+        }
+    }
+}
