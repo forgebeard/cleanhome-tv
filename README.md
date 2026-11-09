@@ -10,6 +10,8 @@
 - **Tuvio STV-43FDUBK1R**: Android 9, 1,5 ГБ памяти по паспорту. Старенький, и с CleanHome он стал заметно шустрее.
 - **Яндекс ТВ Станция MiniLED**: Android 14 (YaOS). Отладка у неё закрыта, лаунчер ставится через браузер телевизора.
 
+Как это было, с замерами и ошибками: [статья в блоге](https://blog.ungurenko.ru/svoy-launcher-android-tv) и [на vc.ru](https://vc.ru/ai/3244864-svoy-launcher-dlya-android-tv).
+
 ![CleanHome на телевизоре: экран «Сцена»](docs/cover.jpg)
 
 ## 🚀 Установка одним промптом
