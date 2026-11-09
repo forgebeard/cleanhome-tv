@@ -22,9 +22,10 @@ Ukrainian: «Головний екран», English and others: «Home». The pa
 
 ## What you need
 
-- The APK. Take the newest release: `gh release download --repo ungurenko/cleanhome-tv --pattern '*.apk'`
-  (or download the `.apk` asset from https://github.com/ungurenko/cleanhome-tv/releases/latest). Build from
-  source only when the person wants changes (see «Change the launcher»).
+- The APK. Take the newest release: `gh release download --repo ungurenko/cleanhome-tv --pattern '*.apk'`.
+  Without a signed-in `gh`, use the public API:
+  `curl -sL https://api.github.com/repos/ungurenko/cleanhome-tv/releases/latest | grep -o 'https://[^"]*\.apk' | head -n 1 | xargs curl -sLO`.
+  Build from source only when the person wants changes (see «Change the launcher»).
 - The TV and the computer in the same home network.
 - `adb` for path A: `brew install android-platform-tools` on macOS, `winget install Google.PlatformTools` on
   Windows, `sudo apt install adb` on Debian/Ubuntu.
