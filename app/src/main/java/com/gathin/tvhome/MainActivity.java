@@ -2207,13 +2207,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 // side away from the headline, and a smaller one in the top corner. The scrim keeps the text side dark.
                 paint.setShader(new RadialGradient(
                         w * 0.72f, h * 1.05f, w * 0.95f,
-                        new int[]{0xBFFFFFFF, 0x66FFFFFF, 0x00FFFFFF},
+                        new int[]{0x99FFFFFF, 0x4DFFFFFF, 0x00FFFFFF},
                         new float[]{0f, 0.5f, 1f},
                         Shader.TileMode.CLAMP));
                 canvas.drawRect(0, 0, w, h, paint);
                 paint.setShader(new RadialGradient(
                         w, 0f, w * 0.55f,
-                        new int[]{0x8CFFFFFF, 0x00FFFFFF},
+                        new int[]{0x66FFFFFF, 0x00FFFFFF},
                         null,
                         Shader.TileMode.CLAMP));
             } else if (cinematic) {
@@ -2251,7 +2251,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             ambient.setBackground(glow);
         }
         // The default tint mode, SRC_IN, keeps the mask's alpha and takes the colour from the tint.
-        glow.setTint(0xFF000000 | color);
+        glow.setTint(scene ? SceneHome.floodTint(color) : 0xFF000000 | color);
     }
 
     private void transitionAmbient(int color) {
