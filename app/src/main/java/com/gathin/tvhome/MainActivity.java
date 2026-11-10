@@ -344,7 +344,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private final TileRefresh tileRefresh = new TileRefresh();
     /** PackageManager's change counter at the last rebuild, to catch a package broadcast that never arrived. */
     private int packageSequence;
-    /** The Inputs or Module cards dropdown while one is open, so onPause can close it. */
+    /**
+     * The menu on screen (Inputs, Settings, a tile's, Module cards) or the App library, so onPause can close it.
+     * Set when the menu is shown, not when it is built: one that turns out empty never opens, and its dismiss
+     * listener would never clear this.
+     */
     private PopupWindow openPopup;
     /** Reorder mode is on (top-bar button). */
     private boolean reordering;
@@ -1501,8 +1505,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 homeHoldAppKeys.get(event.getKeyCode()))) return true;
         if (handleSettingsKey(event)) return true;
         if (holdOk(event)) return true;
-        if (tileMenuEnabled && !reordering && openPopup == null && cardPrompt == null
-                && event.getKeyCode() == KeyEvent.KEYCODE_MENU) {
+        if (tileMenuEnabled && !homeBusy() && event.getKeyCode() == KeyEvent.KEYCODE_MENU) {
             int position = focusedTilePosition();
             if (position >= 0 && position < adapter.appCount()
                     && !getPackageName().equals(adapter.packageAt(position))) {
@@ -3784,8 +3787,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         popup.setOnDismissListener(() -> {
             if (openPopup == popup) openPopup = null;
         });
-        openPopup = popup;
         return popup;
+    }
+
+    /**
+     * Something of Home's own has the remote: reorder mode, an open menu or the card prompt. The tile menu
+     * (hold OK, the Menu key, a long click) stays closed meanwhile.
+     */
+    private boolean homeBusy() {
+        return reordering || openPopup != null || cardPrompt != null;
     }
 
     /** Drop in: fade and unfold from the top edge, hanging under the anchor pill. */
@@ -3794,6 +3804,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         panel.setPivotY(0f);
         panel.setScaleY(0.92f);
         panel.setTranslationY(-8 * density);
+        openPopup = popup;
         popup.showAsDropDown(anchor, 0, (int) (10 * density), gravity);
         panel.animate().alpha(1f).scaleY(1f).translationY(0f).setDuration(reducedMotion ? Motion.REDUCED_MS : 220)
                 .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
@@ -3937,7 +3948,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (event.getRepeatCount() == 0) {
                 holdOkFired = false;
                 handler.removeCallbacks(holdOkTimer);
-                holdOkPosition = reordering || openPopup != null || cardPrompt != null ? -1 : focusedTilePosition();
+                holdOkPosition = homeBusy() ? -1 : focusedTilePosition();
                 holdOkKey = holdOkPosition < 0 || holdOkPosition >= adapter.appCount() ? null : adapter.keyAt(holdOkPosition);
                 if (holdOkKey == null) {
                     holdOkDown = -1;
@@ -3984,7 +3995,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         handler.removeCallbacks(holdOkTimer);
         if (holdOkDown < 0 || holdOkFired) return;
         holdOkFired = true;
-        if (openPopup != null || reordering) return;   // View's own long click got there first
+        if (homeBusy()) return;   // View's own long click got there first
         int position = holdOkPosition;
         if (position < 0 || position >= adapter.appCount() || position != focusedTilePosition()) return;
         // Same slot is not enough: tiles may have been rebuilt during the hold, so the app must match too.
@@ -3996,7 +4007,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     public void onTileLongPress(int position, View card) {
-        if (reordering || openPopup != null) return;
+        if (homeBusy()) return;
         String key = adapter.keyAt(position);
         String pkg = adapter.packageAt(position);
         // Empty dock slots and the Default-home tile carry the launcher's own package: no menu for them.
@@ -4037,6 +4048,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             panel.setPivotY(height);
             panel.setScaleY(0.92f);
             panel.setTranslationY(8 * density);
+            openPopup = popup;
             popup.showAtLocation(root, Gravity.NO_GRAVITY, at[0], Math.max(0, at[1] - gap - height));
             panel.animate().alpha(1f).scaleY(1f).translationY(0f).setDuration(220)
                     .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();

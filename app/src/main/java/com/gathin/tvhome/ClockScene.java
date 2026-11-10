@@ -48,10 +48,12 @@ final class ClockScene {
     private final GradientDrawable glow;
     private int colorIndex;
     private int glowColor;
-    /** clock_wallpaper or clock_glow false: something else (a picture, or plain black) replaced the coloured glow. */
-    private boolean wallpaperShown;
-    /** clock_wallpaper: the picture start() decodes, its darkening, and the resources to draw it with. */
+    /** What is behind the clock right now. Only GLOW runs the colour cycle. */
+    private ClockBackdrop.Kind backdrop = ClockBackdrop.Kind.GLOW;
+    /** clock_wallpaper: the picture wanted behind the clock, its darkening, and the resources to draw it with. */
     private File wallpaperFile;
+    /** The picture on screen, or null. It stays up while the next one decodes, and when that one cannot be read. */
+    private File shownFile;
     private int wallpaperShade;
     private Resources wallpaperRes;
     /** One number per decode request: a result whose number is no longer the current one is dropped. Main thread only. */
@@ -97,7 +99,7 @@ final class ClockScene {
         handler.removeCallbacks(tick);
         handler.postDelayed(tick, MOVE_MS);
         clockRefresh.start();
-        if (wallpaperFile != null && !wallpaperShown) loadWallpaper();
+        if (wallpaperFile != null && !wallpaperFile.equals(shownFile)) loadWallpaper();
     }
 
     void stop() {
@@ -111,7 +113,7 @@ final class ClockScene {
      * clock_wallpaper: put the picture Home is showing behind the clock, darkened by clock_wallpaper_dim, in
      * place of the glow, and carry a collection's rotation on while the screensaver is up. Decoded off the main
      * thread at screen size in RGB_565 (4 MB at 1080p), like Home's own; until then, or if it cannot be read,
-     * the glow stays.
+     * the glow stays (plain black with clock_glow false).
      * Call before start(), which starts the decode (again after a stop() that dropped an unfinished one).
      */
     void useHomeWallpaper(Context ctx) {
@@ -121,34 +123,32 @@ final class ClockScene {
         } catch (RuntimeException e) {
             return;
         }
-        if (!cfg.clockWallpaper) {
-            // clock_glow false: plain black behind the clock (OLED); the clock itself still moves every minute.
-            if (!cfg.clockGlow) {
-                wallpaperShown = true;   // also stops the glow's colour cycle
-                ambient.setBackground(null);
-            }
-            return;
+        // clock_glow false: plain black behind the clock (OLED); the clock itself still moves every minute.
+        if (ClockBackdrop.withoutPicture(cfg.clockGlow) == ClockBackdrop.Kind.BLACK) {
+            backdrop = ClockBackdrop.Kind.BLACK;
+            ambient.setBackground(null);
         }
         // What Home plays, and Config puts the single wallpaper in it when a theme has no collection.
         // Reading cfg.wallpaper first held the screensaver on wallpaper.jpg while Home rotated.
-        if (cfg.wallpapers.isEmpty()) {
+        if (ClockBackdrop.choose(cfg.clockWallpaper, cfg.clockGlow, !cfg.wallpapers.isEmpty())
+                != ClockBackdrop.Kind.PICTURE) {
             wallpaperFile = null;
-        } else {
-            // Start on the picture Home is showing. WallpaperPlayer records it under the same
-            // preferences and the screensaver runs in the same process, so this is just a read.
-            rotation = new ArrayList<>(cfg.wallpapers);
-            String shown = ctx.getSharedPreferences("wallpaper_rotation", Context.MODE_PRIVATE)
-                    .getString("image", "");
-            File current = WallpaperRotation.find(rotation, shown);
-            wallpaperFile = current != null ? current : rotation.get(0);
-            // Home only rotates while it is visible, so the screensaver carries the rotation on
-            // itself; without this it holds one picture for as long as it is up.
-            rotationMs = cfg.wallpaperRotationMinutes * 60_000L;
-            order = cfg.wallpaperOrder;
-            moods = cfg.wallpaperMoods;
-            latitude = moods.isEmpty() ? "" : ctx.getString(R.string.latitude);
-            longitude = moods.isEmpty() ? "" : ctx.getString(R.string.longitude);
+            return;
         }
+        // Start on the picture Home is showing. WallpaperPlayer records it under the same
+        // preferences and the screensaver runs in the same process, so this is just a read.
+        rotation = new ArrayList<>(cfg.wallpapers);
+        String shown = ctx.getSharedPreferences("wallpaper_rotation", Context.MODE_PRIVATE)
+                .getString("image", "");
+        File current = WallpaperRotation.find(rotation, shown);
+        wallpaperFile = current != null ? current : rotation.get(0);
+        // Home only rotates while it is visible, so the screensaver carries the rotation on
+        // itself; without this it holds one picture for as long as it is up.
+        rotationMs = cfg.wallpaperRotationMinutes * 60_000L;
+        order = cfg.wallpaperOrder;
+        moods = cfg.wallpaperMoods;
+        latitude = moods.isEmpty() ? "" : ctx.getString(R.string.latitude);
+        longitude = moods.isEmpty() ? "" : ctx.getString(R.string.longitude);
         wallpaperShade = (cfg.clockWallpaperDim * 255 / 100) << 24;
         wallpaperRes = ctx.getResources();
     }
@@ -164,11 +164,12 @@ final class ClockScene {
             Bitmap bmp = decode(file, w, h);
             if (bmp == null) return;
             handler.post(() -> {
-                if (generation != wallpaperGeneration || wallpaperShown) {
-                    bmp.recycle();   // stopped meanwhile (or already shown): this picture was never attached
+                if (generation != wallpaperGeneration) {
+                    bmp.recycle();   // stopped meanwhile, or a newer request: this picture was never attached
                     return;
                 }
-                wallpaperShown = true;
+                backdrop = ClockBackdrop.Kind.PICTURE;
+                shownFile = file;
                 // As the image, not the background: a background is stretched to the view, so a picture of
                 // another shape than the screen would be distorted. centerCrop scales and crops it like Home.
                 ambient.setBackground(null);
@@ -214,7 +215,6 @@ final class ClockScene {
         File next = WallpaperRotation.pick(playable(), wallpaperFile.getName(), order, random);
         if (next.equals(wallpaperFile)) return;   // a mood group of one
         wallpaperFile = next;
-        wallpaperShown = false;
         loadWallpaper();
     }
 
@@ -250,7 +250,7 @@ final class ClockScene {
     }
 
     private void shiftGlow() {
-        if (wallpaperShown) return;
+        if (backdrop != ClockBackdrop.Kind.GLOW) return;
         int from = glowColor;
         colorIndex = (colorIndex + 1) % PALETTE.length;
         int to = PALETTE[colorIndex];
