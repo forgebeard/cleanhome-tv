@@ -1488,10 +1488,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private static final int REORDER_ACCENT = 0xFF6EC1FF;
 
     /**
-     * Reorder mode (top-bar button). While it is on, every key comes here first:
-     * - nothing carried: arrows move focus as usual; OK on a tile picks it up instead of opening the app;
-     *   Back ends the mode and saves the order.
-     * - a tile carried: arrows move it; Back (or OK) puts it down and the mode stays on for the next one.
+     * While reorder mode or edit-dock mode is on, every key comes here first and ReorderKeys says what it does.
      * Other keys (volume, Home) pass through; leaving the launcher ends the mode and saves.
      */
     @Override
@@ -1516,49 +1513,58 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
         }
         if (!reordering) return super.dispatchKeyEvent(event);
-        if (dockEditing) return dispatchDockEdit(event);
-        boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
-        int code = event.getKeyCode();
-        boolean ok = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER
-                || code == KeyEvent.KEYCODE_NUMPAD_ENTER;
-        boolean back = code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE;
-        if (movingKey != null) {
-            switch (code) {
-                case KeyEvent.KEYCODE_DPAD_LEFT:
-                case KeyEvent.KEYCODE_DPAD_RIGHT:
-                case KeyEvent.KEYCODE_DPAD_UP:
-                case KeyEvent.KEYCODE_DPAD_DOWN:
-                    if (down) moveBy(code);
-                    return true;
-                default:
-                    if (ok || back) {
-                        if (!down) drop();
-                        return true;
-                    }
-                    return super.dispatchKeyEvent(event);
-            }
-        }
-        if (back) {
-            if (!down) endReorder();
-            return true;
-        }
-        int pos = focusedTilePosition();
         View focus = getCurrentFocus();
-        if (ok && focus != null && focus.getId() == R.id.btnLibrary) {
-            // The App library pill sits in the grid but is no tile: OK ends the mode (saving the order) and opens it.
-            if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
+        int pos = focusedTilePosition();
+        ReorderKeys.Mode mode = ReorderKeys.mode(reordering, movingKey != null, dockEditing, dockEditSlot,
+                dockEditAppKey != null);
+        switch (ReorderKeys.decide(mode, ReorderKeys.key(event.getKeyCode()),
+                event.getAction() == KeyEvent.ACTION_DOWN,
+                event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled(),
+                focus != null && focus.getId() == R.id.btnLibrary, grid.hasFocus(),
+                pos, adapter.movableCount(), COLUMNS)) {
+            case CONSUME:
+                return true;
+            case MOVE:
+                moveBy(event.getKeyCode());
+                return true;
+            case DROP:
+                drop();
+                return true;
+            case END:
+                endReorder();
+                return true;
+            case PICK_UP:
+                pickUp(pos);
+                return true;
+            case END_AND_OPEN_LIBRARY:
                 endReorder();
                 onLibraryRequested();
+                return true;
+            case DOCK_BACK_TO_PLACE: {
+                int slot = dockEditSlot;
+                dockEditSlot = -1;
+                dimOthers();
+                focusTile(slot);
+                return true;
             }
-            return true;
+            case DOCK_CHOOSE_PLACE:
+                dockEditSlot = pos;
+                dimOthers();
+                focusTile(Math.min(COLUMNS, adapter.movableCount() - 1));
+                Toast.makeText(this, R.string.dock_edit_pick_app, Toast.LENGTH_LONG).show();
+                return true;
+            case DOCK_SWAP_WAITING_APP: {
+                int from = adapter.positionOf(dockEditAppKey);
+                if (from >= 0) swapIntoDock(pos, from);
+                else endReorder();
+                return true;
+            }
+            case DOCK_SWAP_INTO_PLACE:
+                swapIntoDock(dockEditSlot, pos);
+                return true;
+            default:
+                return super.dispatchKeyEvent(event);
         }
-        if (ok && grid.hasFocus()) {
-            // RecyclerView can briefly report NO_POSITION during a move or rebind. Still consume
-            // OK on the grid: falling through would let the focused card open its app in reorder mode.
-            if (!down && pos >= 0) pickUp(pos);
-            return true;
-        }
-        return super.dispatchKeyEvent(event);   // arrows navigate; OK on a top-bar pill works as usual
     }
 
     /** Adapter position of the focused tile, or -1 when focus is not on a tile. */
@@ -1603,58 +1609,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         dockEditSlot = -1;
         focusTile(0);
         Toast.makeText(this, R.string.dock_edit_hint, Toast.LENGTH_LONG).show();
-    }
-
-    /**
-     * Keys in edit-dock mode. First OK on a dock tile chooses that place (the other dock tiles dim) and focus moves
-     * to the grid; then OK on any tile swaps that app into the place, saves the order and ends the mode. Back goes
-     * one step back: from choosing the app to choosing the place, and from there out of the mode.
-     */
-    private boolean dispatchDockEdit(KeyEvent event) {
-        boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
-        int code = event.getKeyCode();
-        boolean ok = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER
-                || code == KeyEvent.KEYCODE_NUMPAD_ENTER;
-        boolean back = code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE;
-        if (back) {
-            if (!down) {
-                if (dockEditAppKey != null) {
-                    endReorder();   // "Add to dock" cancelled before a place was chosen
-                } else if (dockEditSlot >= 0) {
-                    int slot = dockEditSlot;
-                    dockEditSlot = -1;
-                    dimOthers();
-                    focusTile(slot);
-                } else {
-                    endReorder();
-                }
-            }
-            return true;
-        }
-        int pos = focusedTilePosition();
-        if (ok && pos >= 0) {
-            if (!down) {
-                int n = adapter.movableCount();
-                if (dockEditAppKey != null) {
-                    if (pos < Math.min(COLUMNS, n)) {
-                        int from = adapter.positionOf(dockEditAppKey);
-                        if (from >= 0) swapIntoDock(pos, from);
-                        else endReorder();
-                    }
-                } else if (dockEditSlot < 0) {
-                    if (pos < Math.min(COLUMNS, n)) {
-                        dockEditSlot = pos;
-                        dimOthers();
-                        focusTile(Math.min(COLUMNS, n - 1));
-                        Toast.makeText(this, R.string.dock_edit_pick_app, Toast.LENGTH_LONG).show();
-                    }
-                } else if (pos < n) {
-                    swapIntoDock(dockEditSlot, pos);
-                }
-            }
-            return true;   // never opens the app while editing
-        }
-        return super.dispatchKeyEvent(event);   // arrows navigate as usual
     }
 
     /**
