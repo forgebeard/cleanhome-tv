@@ -1,6 +1,6 @@
 {
   "wallpaper": true,
-  "wallpaper_rotation_minutes": 30,
+  "wallpaper_rotation_minutes": 0,
   "wallpaper_order": "shuffle",
   "wallpaper_dim": 20,
   "dock_opacity": 70,
