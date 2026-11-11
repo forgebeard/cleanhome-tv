@@ -949,6 +949,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             showSettingsMenu();
             return true;
         });
+        // TV remote provides Settings; keep launcher settings accessible there, not in the header.
+        btnSettings.setVisibility(View.GONE);
         // A sideload has no "adb shell pm grant", so the pill can only name the network after the owner allows
         // location access in the system dialog (Android 10+ masks the SSID without it).
         handler.postDelayed(this::maybeAskForNetworkName, 2000);
@@ -965,8 +967,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 return true;
             }
             int firstButton = btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : firstTopButton().getId();
-            int leftButton = rtlMenuBar ? R.id.btnSettings : firstButton;
-            int rightButton = rtlMenuBar ? firstButton : R.id.btnSettings;
+            ViewGroup topBar = findViewById(R.id.topButtons);
+            int lastButton = firstButton;
+            for (int idx = 0; idx < topBar.getChildCount(); idx++) {
+                View candidate = topBar.getChildAt(idx);
+                if (candidate.getVisibility() == View.VISIBLE) lastButton = candidate.getId();
+            }
+            int leftButton = rtlMenuBar ? lastButton : firstButton;
+            int rightButton = rtlMenuBar ? firstButton : lastButton;
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) return v.getId() == leftButton;
             return keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && v.getId() == rightButton;
         };
