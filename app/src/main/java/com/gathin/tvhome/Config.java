@@ -716,8 +716,11 @@ final class Config {
         // An unknown order must not silently change how an existing collection rotates.
         if (!WallpaperRotation.validOrder(wallpaperOrder)) wallpaperOrder = WallpaperRotation.ORDER_SHUFFLE;
         List<File> wallpapers = new ArrayList<>();
-        if (rotationMinutes > 0 && dir != null && wallpaperEnabled) {
-            wallpapers.addAll(WallpaperRotation.images(new File(dir, "wallpapers")));
+        if (dir != null && wallpaperEnabled) {
+            List<File> themePictures = WallpaperRotation.images(new File(dir, "wallpapers"));
+            // A zero rotation interval means a static image, not no wallpaper.
+            if (rotationMinutes > 0) wallpapers.addAll(themePictures);
+            else if (!themePictures.isEmpty()) wallpapers.add(themePictures.get(0));
         }
         if (wallpapers.isEmpty() && wallpaper != null) wallpapers.add(wallpaper);
         // An on-TV wallpaper pick overrides the theme: a filename from the wallpapers/
