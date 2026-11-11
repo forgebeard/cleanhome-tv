@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - feature/home-ux
+      - feature/library-grid-cleanup
 
 permissions:
   contents: read
@@ -41,7 +42,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: CleanHome-home-ux-apk
+          name: CleanHome-library-grid-apk
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 14
