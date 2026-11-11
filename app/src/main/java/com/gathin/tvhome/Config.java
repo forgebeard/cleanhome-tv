@@ -674,7 +674,7 @@ final class Config {
         if (sceneHome) {
             cinematic = true;
             ambientGlow = true;
-            dockTitle = true;
+            // Respect dock_title so Scene can keep its layout without the large headline.
             dockRow = true;
             singleRow = true;
             dockBand = false;
