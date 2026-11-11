@@ -169,6 +169,18 @@
 
         <!-- market://launch?id=<package>: package-name app launches from the Android TV Remote service
              (Home Assistant android_tv_remote), normally served by the stock launcher. -->
+        <!-- Experimental app-library tile: read-only discovery of Yandex exported screens. -->
+        <activity
+            android:name=".YandexProbeActivity"
+            android:label="Яндекс: проверка"
+            android:exported="true"
+            android:theme="@android:style/Theme.Material.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".AppLaunchActivity"
             android:exported="true"
