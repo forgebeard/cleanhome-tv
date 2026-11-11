@@ -235,7 +235,8 @@ final class AppLibraryDialog {
                     if (info.activityInfo == null || !info.activityInfo.exported) continue;
                     String pkg = info.activityInfo.packageName;
                     if (Intent.CATEGORY_LEANBACK_LAUNCHER.equals(category)) tv.add(pkg);
-                    if (!pkg.equals(self) && !LibraryApps.excludedFromCatalog(excludedApps, pkg) && !unique.containsKey(pkg)) unique.put(pkg, info);
+                    if (!pkg.equals(self) && !LibraryApps.excludedFromCatalog(excludedApps, pkg)
+                            && !systemUtility(pm, info) && !unique.containsKey(pkg)) unique.put(pkg, info);
                 }
             }
             Map<String, String> names = new HashMap<>();
@@ -302,6 +303,27 @@ final class AppLibraryDialog {
         String value = loadLabel(activity.getPackageManager(), app);
         labels.put(pkg, value);
         return value;
+    }
+
+    /** Hide known TV service shortcuts, not every system app: Kinopoisk and other useful
+     * preinstalled apps must remain visible. Only affects the library, never uninstalls apps. */
+    private static boolean systemUtility(PackageManager pm, ResolveInfo app) {
+        String label;
+        try { label = String.valueOf(app.loadLabel(pm)).trim().toLowerCase(java.util.Locale.ROOT); }
+        catch (RuntimeException e) { return false; }
+        return label.equals("календарь") || label.equals("контакты")
+                || label.equals("настройки") || label.equals("прямой эфир")
+                || label.equals("calendar") || label.equals("contacts")
+                || label.equals("settings") || label.equals("live tv")
+                || label.startsWith("я.тв ") || label.startsWith("я.тв")
+                || label.startsWith("yandex tv ")
+                || label.equals("хранилище настроек")
+                || label.equals("tv storage")
+                || label.equals("upgrad")
+                || label.equals("vpndialogs")
+                || label.equals("wifi monitor service")
+                || label.equals("yandex advid service")
+                || label.equals("yandextvsettings");
     }
 
     private static String loadLabel(PackageManager pm, ResolveInfo app) {
