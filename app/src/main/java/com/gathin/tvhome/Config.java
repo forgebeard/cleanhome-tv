@@ -673,7 +673,7 @@ final class Config {
         // so a theme or an old config can't leave the screen half in it.
         if (sceneHome) {
             cinematic = true;
-            ambientGlow = true;
+            // Keep the chosen wallpaper stable when focus changes.
             // Respect dock_title so Scene can keep its layout without the large headline.
             dockRow = true;
             singleRow = true;
